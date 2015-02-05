@@ -101,7 +101,7 @@ def create_relevance_clm_sen_score():
     """
     clm_sen_support_ranking_sorted = utils.read_pickle(r"C:\Users\liorab\workspace\supporting_evidence\src\features\clm_sen_support_ranking_sorted_full")
     clm_sen_relevance_dict = {} #key is (clm, sen) , val is 1- relevant, 0 - not relevant 
-    
+    clm_as_key_sen_relevance_score_val_wiki = {} 
     
     for (clm,sen,score) in clm_sen_support_ranking_sorted.keys():
         if score > 0:

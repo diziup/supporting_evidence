@@ -68,7 +68,6 @@ class max_min_sentiment_score_keeper():
         max_sentiment_entropy = 0.0
         min_sentiment_entropy = 0.0
 
-
 class max_min_semantic_score_keeper():
     max_semantic_score = 0.0
     min_semantic_score = 0.0
@@ -95,18 +94,25 @@ class CEScores():
 
 class support_baseline():
     
-    def  __init__(self,kernel,features_setup):
-        self.relevance_linux_base_path = r"/home/liorab/softwares/indri-5.5/retrieval_baselines"
+    def  __init__(self,kernel,features_setup,target):
+#         self.relevance_linux_base_path = r"/home/liorab/softwares/indri-5.5/retrieval_baselines"
 #         self.relevance_base_path = r"/home/liorab/softwares/indri-5.5/retrieval_baselines"
 #         self.support_linux_base_path = r"/lv_local/home/liorab/softwares/indri-5.5/retrieval_baselines_support"
         self.features_setup = features_setup
         self.support_linux_base_path = r"C:\study\technion\MSc\Thesis\Y!\support_test\support_baselines"
+        self.relevance_comparison_path = r"C:\study\technion\MSc\Thesis\Y!\support_test\support_baselines\relevance_comparison"
         self.SVM_path = self.support_linux_base_path+r"\SVM_zero_two_scale"+"\\" + self.features_setup +r"_features"
 #         self.SVM_path = self.support_linux_base_path+ "/SVM_zero_two_scale/"+ self.features_setup+r"_features"
+        self.SVM_path_relevance = self.relevance_comparison_path +"\SVM"+ "\\"+ self.features_setup +r"_features"
         self.train_path = self.SVM_path+r"\train"+"\\"
         self.test_path = self.SVM_path +r"\test"+"\\"
         self.model_path = self.SVM_path +r"\model"+"\\"
         self.prediction_path = self.SVM_path +r"/prediction/"
+        self.train_path_relevance = self.SVM_path_relevance+ r"\train"+"\\"
+        self.test_path_relevance = self.SVM_path_relevance+ r"\test"+"\\"
+        self.model_path_relevance = self.SVM_path_relevance+ r"\model"+"\\"
+        self.prediction_path_relevance = self.SVM_path_relevance+ r"\prediction"+"\\"
+        
         self.docid_set_per_claim = {}
         self.top_k_docs = 50
         self.claim_list = [4,7,17,21,36,37,39,40,41,42,45,46,47,50,51,53,54,55,57,58,59,60,61,62,66,69,70,79,80]
@@ -127,17 +133,47 @@ class support_baseline():
         self.sentence_sentiment_vector_entropy = {}
         self.claim_sentiment_vector_and_label_dict = {}
         self.claim_sen_sentiment_vector_and_label_dict = {}
+        self.target = target
         
     def read_pickle(self,file_name):
         d = {}
         with open(file_name, 'rb') as handle:
-            d = pickle.loads(handle.read()) 
+            d = pickle.loads(handle.read())
         return d
+#         d_to_return = {}
+#         for d_claim_num in d.keys():
+#             d_to_return[d_claim_num] = {}
+#             for d_key in d[d_claim_num].keys():
+#                 ces_scores = CEScores()
+#                 for ces_key in d[d_claim_num][d_key].keys():
+#                     setattr(ces_scores, ces_key, d[d_claim_num][d_key][ces_key])
+#                 d_to_return[d_claim_num][d_key] = ces_scores
+#         return d_to_return
     
     def save_pickle(self,file_name,d):
         with open(file_name, 'wb') as handle:
             pickle.dump(d, handle)
-        handle.close()
+#         handle.close()
+#         d_to_save = {}
+#         ces_keys = ["CE_claim_title","CE_claim_body", "CE_entity_title", "CE_entity_body", "CE_claim_sentence", "CE_entity_sentence"]
+#         for d_claim_num in d.keys():
+#             d_to_save[d_claim_num] = {}
+#             for d_key in d[d_claim_num].keys():
+#                 d_to_save[d_claim_num][d_key] = {}
+#                 ces_obj = d[d_claim_num][d_key]
+#                 for ces_key in ces_keys:
+#                     ces_val = getattr(ces_obj,ces_key)
+#                     d_to_save[d_claim_num][d_key][ces_key] = ces_val 
+            
+#         with open(file_name, 'wb') as handle:
+#             pickle.dump(d_to_save, handle)
+#         handle.close()
+    
+    def read_old_pickle_testing(self,file_name):
+        d = {}
+        with open(file_name, 'rb') as handle:
+            d = pickle.loads(handle.read())
+        return d
     
     def create_set_of_docs_per_claim(self):
         print " creating set of docs per claim..."
@@ -561,19 +597,23 @@ class support_baseline():
         #finished, save to pickle
         self.save_pickle("left_out_max_min_support_CE_features", left_out_max_min_features) 
             
-    def convert_support_scores_dict_to_chars_as_sen(self):
+    def convert_target_scores_dict_to_chars_as_sen(self):
         """
         as there is a difference between the sens in the support claim dict and the sens as they were retrieved from the baseline,
         convert the sen to only the chars.
         """
         exclude = set(string.punctuation)
-        support_scores_dict = self.read_pickle("clm_sen_support_ranking_zero_to_two_clm_sen_key_supp_score_value")
-        support_scores_dict_no_punct = {}
-        for ((claim,sen),supp_score) in support_scores_dict.items():
+        if self.target == "support":
+            target_scores_dict = self.read_pickle("clm_sen_support_ranking_zero_to_two_clm_sen_key_supp_score_value")
+        elif self.target == "relevance":
+            target_scores_dict = self.read_pickle("clm_sen_relevance_dict")
+            #target_scores_dict = self.read_pickle("claim_sen_relevance_dict_wiki")
+        target_scores_dict_no_punct = {}
+        for ((claim,sen),supp_score) in target_scores_dict.items():
             sen_no_punct = ''.join(ch for ch in sen if ch not in exclude)
             sen_no_space = sen_no_punct.replace(" ","")
-            support_scores_dict_no_punct[(claim,sen_no_space)] = supp_score
-        return support_scores_dict_no_punct
+            target_scores_dict_no_punct[(claim,sen_no_space)] = supp_score
+        return target_scores_dict_no_punct
           
     def write_train_test_files_SVM(self):
         #write the files with the max-min normalized scores
@@ -595,7 +635,7 @@ class support_baseline():
         if "semantic" in self.features_setup :
             left_out_max_min_semantic_features = self.read_pickle("left_out_max_min_support_semantic_feature")
             self.clm_sen_semantic_similarity_dict = self.read_pickle("all_clm_sen_cosine_sim_res_word2vec_max_words_similarity_300")
-        support_scores_dict = self.convert_support_scores_dict_to_chars_as_sen()
+        target_scores_dict = self.convert_target_scores_dict_to_chars_as_sen()
         claim_dict = self.read_pickle("claim_dict")
         exclude = set(string.punctuation)
         
@@ -604,8 +644,12 @@ class support_baseline():
             curr_train_claims = self.claim_list[:]
             curr_train_claims.remove(left_out_claim)
             #line = ""
-            curr_test_LOOCV = open (self.test_path+r"test_clm_num_"+str(left_out_claim)+"_CV", 'wb')
-            curr_train_LOOCV = open (self.train_path+r"train_left_out_"+str(left_out_claim)+"_CV", 'wb')  
+            if self.target == "support":
+                curr_test_LOOCV = open (self.test_path+r"test_clm_num_"+str(left_out_claim)+"_CV", 'wb')
+                curr_train_LOOCV = open (self.train_path+r"train_left_out_"+str(left_out_claim)+"_CV", 'wb')
+            elif self.target == "relevance":
+                curr_test_LOOCV = open(self.test_path_relevance+r"test_clm_num_"+str(left_out_claim)+"_CV", 'wb')
+                curr_train_LOOCV = open(self.train_path_relevance+r"train_left_out_"+str(left_out_claim)+"_CV", 'wb')
             for curr_claim in curr_train_claims:                   
                 print "    curr train claim:" +str(curr_claim)
                 sentences_set = set()
@@ -679,8 +723,8 @@ class support_baseline():
                                         curr_features_vec.append(0)
                                 sen_no_punct = ''.join(ch for ch in sen if ch not in exclude)
                                 sen_no_space = sen_no_punct.replace(" ","")
-                                if support_scores_dict.has_key((claim_dict[str(curr_claim)], sen_no_space)):
-                                    curr_support_score = support_scores_dict[(claim_dict[str(curr_claim)],sen_no_space)]
+                                if target_scores_dict.has_key((claim_dict[str(curr_claim)], sen_no_space)):
+                                    curr_support_score = target_scores_dict[(claim_dict[str(curr_claim)],sen_no_space)]
     #                                 print " found " + claim_dict[str(curr_claim)] +" "+ sen +" supp score:"+ str(curr_support_score)
                                 else:
                                     curr_support_score = 0
@@ -696,7 +740,7 @@ class support_baseline():
                                 print err
                         else:
                             dups_cnt += 1
-                print curr_claim, "dups", dups_cnt ,len(sentences_set)," sentences:"
+#                 print curr_claim, "dups", dups_cnt ,len(sentences_set)," sentences:"
             curr_train_LOOCV.close()
             curr_claim = ""
             for docid in self.claim_entity_doc_CE_scores_dict[left_out_claim]:
@@ -775,9 +819,9 @@ class support_baseline():
                             curr_features_vec.append(0)
                     sen_no_punct = ''.join(ch for ch in sen if ch not in exclude)
                     sen_no_space = sen_no_punct.replace(" ","")
-                    if support_scores_dict.has_key((claim_dict[str(left_out_claim)],sen_no_space)):
-                        curr_support_score = support_scores_dict[claim_dict[str(left_out_claim)],sen_no_space]
-                        print" found"
+                    if target_scores_dict.has_key((claim_dict[str(left_out_claim)],sen_no_space)):
+                        curr_support_score = target_scores_dict[claim_dict[str(left_out_claim)],sen_no_space]
+#                         print" found"
                     else:
                         curr_support_score = 0 
                     line += str(curr_support_score) + " qid:" + str(left_out_claim) +" "
@@ -792,10 +836,10 @@ class support_baseline():
     def calc_num_of_support_sentences_in_data(self):
         """
         for each claim, calc the number of sentences in the data
-        that are labeled
+        that are labeled, and that are labeled as supp
         """
         exclude = set(string.punctuation)
-        support_scores_dict = self.convert_support_scores_dict_to_chars_as_sen()
+        support_scores_dict = self.convert_target_scores_dict_to_chars_as_sen()
 #         self.claim_entity_doc_CE_scores_dict = self.read_pickle("support_model_claim_entity_doc_CE_scores_dict_normalized")
 #         self.claim_entity_sen_CE_scores_dict = self.read_pickle("support_model_claim_entity_sen_CE_scores_dict_normalized")
         claim_sentences_dict = self.read_pickle("support_baseline_claim_sentences")
@@ -818,22 +862,49 @@ class support_baseline():
             claim_num_supp_sentences[curr_claim] = (labeled_sen_cnt, labeled_sen_percent, supp_sen_cnt, supp_sen_percent)
         
         for claim in claim_num_supp_sentences.keys():
-            print claim, claim_num_supp_sentences[claim]
+            print claim, claim_num_supp_sentences[claim]        
+    
+    def calc_num_of_relevant_sentences_in_data(self):
+        """
+        for each claim, calc the number of sentences in the data
+        that are labeled, and that are labeled as supp
+        """
+        exclude = set(string.punctuation)
+        rel_scores_dict = self.convert_target_scores_dict_to_chars_as_sen()
+#         self.claim_entity_doc_CE_scores_dict = self.read_pickle("support_model_claim_entity_doc_CE_scores_dict_normalized")
+#         self.claim_entity_sen_CE_scores_dict = self.read_pickle("support_model_claim_entity_sen_CE_scores_dict_normalized")
+        claim_sentences_dict = self.read_pickle("support_baseline_claim_sentences")
+        claim_dict = self.read_pickle("claim_dict")
+        claim_num_rel_sentences = {} #key- claim num, value - number of supporting sentences labled
+        
+        for curr_claim in self.claim_list:
+            rel_sen_cnt = 0.0
+            print "    curr train claim:" +str(curr_claim)
+            for sen in claim_sentences_dict[curr_claim]:
+                sen_no_punct = ''.join(ch for ch in sen if ch not in exclude)
+                sen_no_space = sen_no_punct.replace(" ","")
+                if rel_scores_dict.has_key((claim_dict[str(curr_claim)],sen_no_space)):
+                    if rel_scores_dict[(claim_dict[str(curr_claim)],sen_no_space)] != 0:
+                        rel_sen_cnt += 1  
+            rel_sen_percent = float(rel_sen_cnt/float(len(claim_sentences_dict[curr_claim])))
+            claim_num_rel_sentences[curr_claim] = (rel_sen_cnt, rel_sen_percent)
+        
+        for claim in claim_num_rel_sentences.keys():
+            print claim, claim_num_rel_sentences[claim]   
         
     def read_predicted_support_score(self):
-        clm_sen_predicition_score_dict_sorted = {}
-#         claim_num_and_text = self.read_pickle(r'C:\Users\liorab\workspace\supporting_evidence\src\features\claim_dict_pickle')
-                                                                                                                                                        #flag of whether the entity is the doc title or in the sen itself
+        clm_sen_predicition_score_dict_sorted = {}                                                                                                                                                       #flag of whether the entity is the doc title or in the sen itself
     #prediction score
         prediction_score_dict = {}
-        
         for clm_num in self.claim_list:
-            curr_pred_file = open(self.prediction_path+"\\"+str(clm_num)+"_prediction", 'r').read().strip()
-            curr_test_file = open(self.test_path+"\\"+"test_clm_num_"+str(clm_num)+"_CV", 'r').read().strip()
-#                 prediction_score_dict = {}
+            if self.target == "support":
+                curr_pred_file = open(self.prediction_path+"\\"+str(clm_num)+"_prediction", 'r').read().strip()
+                curr_test_file = open(self.test_path+"\\"+"test_clm_num_"+str(clm_num)+"_CV", 'r').read().strip()
+            elif self.target == "relevance":
+                curr_pred_file = open(self.prediction_path_relevance +"\\"+str(clm_num)+"_prediction", 'r').read().strip()
+                curr_test_file = open(self.test_path_relevance+"\\"+"test_clm_num_"+str(clm_num)+"_CV", 'r').read().strip()
             sen_dict = {} #key is a line number from the file, val is a sen
             for i, line in enumerate(curr_pred_file.split('\n')):
-#                     prediction_score_dict[i] = float(line)
                 prediction_score_dict[i] = float(line)
             for i, line in enumerate(curr_test_file.split('\n')):
                 #need to check if # is also in the sen itself, meaning if there are m
@@ -843,17 +914,16 @@ class support_baseline():
                     sen = line.split("#")[1].split("|")[1]
                 sen_dict[i] = sen
             clm = line.split("#")[1].split("|")[0]
-#                 sen_predicted_score_sorted = sorted(zip(sen_dict.values(), prediction_score_dict.values()),key=lambda x: (float(x[1])), reverse=True)
             sen_predicted_score_sorted = sorted(zip(sen_dict.values(), prediction_score_dict.values()),key=lambda x: (float(x[1])), reverse=True)
             clm_sen_predicition_score_dict_sorted[clm] = (sen_predicted_score_sorted) #key is clm , value is a list of sen and the predicted score
-            
-        with open("sort_sen_per_clm_pred_"+self.kernel+"_"+".csv", 'wb') as csvfile:
-                w = csv.writer(csvfile)
-                for (clm,sen_predicted_score_list) in clm_sen_predicition_score_dict_sorted.items():
-                    for (sen, score) in sen_predicted_score_list:
-                        w.writerow([clm,sen,str(score)])
-        self.save_pickle("clm_as_key_sen_predicted_support_score_val_"+self.kernel, clm_sen_predicition_score_dict_sorted)               
-
+        
+        self.save_pickle("clm_as_key_sen_predicted_"+self.target+"_score_val_"+self.kernel, clm_sen_predicition_score_dict_sorted)           
+#         with open("sort_sen_per_clm_pred_"+self.kernel+"_"+".csv", 'wb') as csvfile:
+#                 w = csv.writer(csvfile)
+#                 for (clm,sen_predicted_score_list) in clm_sen_predicition_score_dict_sorted.items():
+#                     for (sen, score) in sen_predicted_score_list:
+#                         w.writerow([clm,sen,str(score)])
+                   
     def process_SVM_rank_prediction_results(self,p):
         """
         the SVM rank output are scores for each claim,
@@ -862,11 +932,13 @@ class support_baseline():
         """
         claim_dict = self.read_pickle("claim_dict")
         #SVM rank support score -read each predicition file, sort the 60 sentences, and calc ndcg
-        clm_sen_predicition_score_dict_wiki = self.read_pickle("clm_as_key_sen_predicted_support_score_val_"+self.kernel)
+        clm_sen_predicition_score_dict_wiki = self.read_pickle("clm_as_key_sen_predicted_"+self.target+"_score_val_"+self.kernel)
     #         clm_as_key_sen_support_score_val_RT = utils.read_pickle("clm_as_key_sen_support_score_val_RT")
-        clm_as_key_sen_support_score_val_wiki = self.read_pickle("clm_as_key_sen_support_score_val_wiki")    
-    #     separated_list = [(clm_sen_predicition_score_dict_RT,clm_as_key_sen_support_score_val_RT,"RT"),(clm_sen_predicition_score_dict_wiki,clm_as_key_sen_support_score_val_wiki,"wiki")]
-        separated_list = [(clm_sen_predicition_score_dict_wiki,clm_as_key_sen_support_score_val_wiki,"wiki")]
+        if self.target == "support":
+            clm_as_key_sen_target_score_val_wiki = self.read_pickle("clm_as_key_sen_support_score_val_wiki")    
+        elif self.target == "relevance":
+            clm_as_key_sen_target_score_val_wiki = self.read_pickle("claim_sen_relevance_dict_wiki")
+        separated_list = [(clm_sen_predicition_score_dict_wiki,clm_as_key_sen_target_score_val_wiki,"wiki")]
         for (curr_pred_supp_dict,curr_true_supp_dict,curr_source) in separated_list:
             NDCG_all_claims = {} #key is a claim, value is the nDCG
             AP_all_claims= {} 
@@ -875,12 +947,18 @@ class support_baseline():
             
             for clm in curr_true_supp_dict.keys():
                 try:
-                    if claim_dict[str(clm)]  in curr_pred_supp_dict.keys():
-                        NDCG_all_claims[clm] = utils.calc_emp_NDCG(curr_source,clm,curr_pred_supp_dict[claim_dict[str(clm)]],curr_true_supp_dict[clm],p)
-                        AP_all_claims[clm] = utils.calc_AP_support(curr_source,clm,curr_pred_supp_dict[claim_dict[str(clm)]],curr_true_supp_dict[clm],p)
-                        prec_at_5_all_claims[clm] = utils.calc_precision_at_k(5, curr_pred_supp_dict[claim_dict[str(clm)]],curr_true_supp_dict[clm])
+                    if self.target == "support":
+                        if claim_dict[str(clm)] in curr_pred_supp_dict.keys():
+                            NDCG_all_claims[clm] = utils.calc_emp_NDCG(curr_source,clm,curr_pred_supp_dict[claim_dict[str(clm)]],curr_true_supp_dict[clm],p)
+                            AP_all_claims[clm] = utils.calc_AP_support(curr_source,clm,curr_pred_supp_dict[claim_dict[str(clm)]],curr_true_supp_dict[clm],p)
+                            prec_at_5_all_claims[clm] = utils.calc_precision_at_k(5, curr_pred_supp_dict[claim_dict[str(clm)]],curr_true_supp_dict[clm])
                         prec_at_10_all_claims[clm] = utils.calc_precision_at_k(10, curr_pred_supp_dict[claim_dict[str(clm)]],curr_true_supp_dict[clm])
-                    
+                    elif self.target == "relevance":
+                        if clm in curr_pred_supp_dict.keys():
+                            NDCG_all_claims[clm] = utils.calc_emp_NDCG(curr_source,clm,curr_pred_supp_dict[clm],curr_true_supp_dict[clm],p)
+                            AP_all_claims[clm] = utils.calc_AP_relevance(1000,curr_source,clm,curr_pred_supp_dict[clm],curr_true_supp_dict[clm])                            
+                            prec_at_5_all_claims[clm] = utils.calc_precision_at_k(5, curr_pred_supp_dict[clm],curr_true_supp_dict[clm])
+                            prec_at_10_all_claims[clm] = utils.calc_precision_at_k(10, curr_pred_supp_dict[clm],curr_true_supp_dict[clm])
                 except Exception as err: 
                     sys.stderr.write('problem in calc measures: in source: '+ curr_source+' in clm '+ claim_dict[str(clm)])     
                     print err.args      
@@ -895,7 +973,7 @@ class support_baseline():
             std_prec_at_5 = np.std(prec_at_5_all_claims.values())
             std_prec_at_10 = np.std(prec_at_10_all_claims  .values())
             
-            print curr_source+ ": in average_NDCG: " +str(average_NDCG) +" std: "+str(std_NDCG) +" MAP :" +str(MAP) + " std:"+str(std_MAP)+ " average_prec_at_5:"+ str(average_prec_at_5) +" std:"+ str(std_prec_at_5)+" average_prec_at_10:"+str(average_prec_at_10) + " std:"+ str(std_prec_at_10)
+            print curr_source+ " target: "+self.target+ ": in average_NDCG: " +str(average_NDCG) +" std: "+str(std_NDCG) +" MAP :" +str(MAP) + " std:"+str(std_MAP)+ " average_prec_at_5:"+ str(average_prec_at_5) +" std:"+ str(std_prec_at_5)+" average_prec_at_10:"+str(average_prec_at_10) + " std:"+ str(std_prec_at_10)
             all_claims_sorted_by_NDCG_feature = collections.OrderedDict(sorted(NDCG_all_claims.items(),key=lambda x: (float(x[1])), reverse=True))
              
             with open('SVM_rank_nDCG@'+str(p)+"_"+self.kernel+".csv", 'wb') as csvfile:
@@ -926,8 +1004,9 @@ def get_top_k_docs_id():
         print err
       
 def create_input_docs_for_SVM():
-    features = "CE_all_sentiment_sim_label_entropy_semantic"
-    support_baseline_process = support_baseline("none",features)
+    features = "sentiment_label_entropy_semantic"
+    target = "relevance" #whether to learn with respect to the support score or relevance score
+    support_baseline_process = support_baseline("none",features,target)
 #     support_baseline_process.map_claim_doc_to_CE_scores()
 #     support_baseline_process.map_claim_sen_to_CE_scores()
 #     support_baseline_process.normalize_doc_CE_scores()
@@ -935,7 +1014,7 @@ def create_input_docs_for_SVM():
 #     support_baseline_process.normalize_features()
     
     support_baseline_process.write_train_test_files_SVM()
- 
+
 def analyze_SVM_results():
     """
     possible features:
@@ -952,19 +1031,23 @@ def analyze_SVM_results():
         CE_all_sentiment_sim_semantic
         CE_claim_title_claim_body_entity_title_entity_body
     """
-    features = "CE_all_sentiment"
-    support_baseline_process = support_baseline("linear",features)
+    features = "CE_all_sentiment_sim"
+    target = "relevance"
+    support_baseline_process = support_baseline("linear",features,target)
     support_baseline_process.read_predicted_support_score()
     support_baseline_process.process_SVM_rank_prediction_results(10)
     
+#     support_baseline_process.calc_num_of_relevant_sentences_in_data()
 #     support_baseline_process.calc_num_of_support_sentences_in_data()
     return
 
  
 def main():
-    create_input_docs_for_SVM()
-#     analyze_SVM_results()
-    
-    
+#     create_input_docs_for_SVM()
+    analyze_SVM_results()
+#     features = "CE_all_sentiment"
+#     support_baseline_process = support_baseline("linear",features)
+#     d = support_baseline_process.read_old_pickle_testing("support_model_claim_entity_sen_CE_scores_dict_normalized")
+#     support_baseline_process.save_pickle("support_model_claim_entity_sen_CE_scores_dict_normalized_new", d)
 if __name__ == '__main__':
     main()

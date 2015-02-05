@@ -252,7 +252,7 @@ class support_sen_files:
                             
                     for filename in os.listdir(output_path):
                         if filename.split("_")[0]=="f":
-                            claim_num=filename.split("_")[1]
+                            claim_num = filename.split("_")[1]
                             with open(output_path+"\\"+filename, 'r') as f:
                                 data = pd.read_csv(f)
                                 answer=data['to_what_extent_does_the_sentence_support_the_claim_or_contradict_it']
@@ -271,7 +271,7 @@ class support_sen_files:
                                 #go over the sentence and answers
                                 for sen in range(0,len(sentence_lines_dict)):  #go over all the sentences we have and their corresponding line nums- keys
                                     for line_num in sentence_lines_dict.values()[sen]:
-                                        ans=answer[line_num]
+                                        ans = answer[line_num]
                                         for poss_ans in answers_possibilities:
                                             if ans == poss_ans:
                                                 triple = (claim_text,sentence[line_num],doc_title[line_num])
