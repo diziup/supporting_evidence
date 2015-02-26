@@ -238,7 +238,7 @@ class support_sen_files:
         site="crowdflower"
         choose_sentence_method="shallow_pool"
         
-        for claim_num in [4,21,7,17,37]:#,36,39,40,41]:
+        for claim_num in [1]:#[4,21,7,17,37]:#,36,39,40,41]:
 #         for claim_num in [4]:
             claim_text=self.claim_text_dict[claim_num]
             if choose_sentence_method is "random": #choose sentences randomly
@@ -302,24 +302,23 @@ class support_sen_files:
                 for i in range(0,5):
                     if site is "turk":
                         trick_index=random.randint(1,len(self.trick_sen)-1)
-                        with open("supp_claim_"+str(claim_num)+"_top_25_sen_"+str(5*i)+"_"+str(5*(i+1))+".csv", "wb") as csvfile:
-                                    
-            #                         trick_index=random.randint(1,len(self.trick_sen)-1)
-                                    csv.register_dialect('escaped', escapechar="'", quotechar='"',doublequote=False)
-                                    w_supp_sen= csv.writer(csvfile, delimiter=',',quoting=csv.QUOTE_NONNUMERIC,dialect='escaped')
-                                    w_supp_sen.writerow( ['claim1','sen1','tit1','claim1','sen2','tit2','claim1','sen3','tit3','claim1','sen4','tit4','claim1','sen5','tit5','claim1','sen6','tit6','claim1','sen7','tit7','claim1','sen8','tit8','claim1','sen9','tit9','claim1','sen10','tit10','claim1','sen11','tit11'] )
-                                    w_supp_sen.writerow((claim_text,self.wiki_claim_sen_as_key_dict[str(claim_num)][0+i*5][0],self.docID_title_wiki_dict[self.wiki_claim_sen_as_key_dict[str(claim_num)][0+i*5][1]],
-                                    claim_text,self.RT_claim_sen_as_key_dict[str(claim_num)][0+i*5][0],self.docID_title_RT_dict[self.RT_claim_sen_as_key_dict[str(claim_num)][0+i*5][1]],
-                                    claim_text,self.wiki_claim_sen_as_key_dict[str(claim_num)][1+i*5][0],self.docID_title_wiki_dict[self.wiki_claim_sen_as_key_dict[str(claim_num)][1+i*5][1]],
-                                    claim_text,self.RT_claim_sen_as_key_dict[str(claim_num)][1+i*5][0],self.docID_title_RT_dict[self.RT_claim_sen_as_key_dict[str(claim_num)][1+i*5][1]],
-                                    claim_text,self.wiki_claim_sen_as_key_dict[str(claim_num)][2+i*5][0],self.docID_title_wiki_dict[self.wiki_claim_sen_as_key_dict[str(claim_num)][2+i*5][1]],
-                                    claim_text,self.RT_claim_sen_as_key_dict[str(claim_num)][2+i*5][0],self.docID_title_RT_dict[self.RT_claim_sen_as_key_dict[str(claim_num)][2+i*5][1]],
-                                    claim_text,self.wiki_claim_sen_as_key_dict[str(claim_num)][3+i*5][0],self.docID_title_wiki_dict[self.wiki_claim_sen_as_key_dict[str(claim_num)][3+i*5][1]],
-                                    claim_text,self.RT_claim_sen_as_key_dict[str(claim_num)][3+i*5][0],self.docID_title_RT_dict[self.RT_claim_sen_as_key_dict[str(claim_num)][3+i*5][1]],
-                                    claim_text,self.wiki_claim_sen_as_key_dict[str(claim_num)][4+i*5][0],self.docID_title_wiki_dict[self.wiki_claim_sen_as_key_dict[str(claim_num)][4+i*5][1]],
-                                    claim_text,self.trick_sen[trick_index][0],self.trick_sen[trick_index][1],
-                                    claim_text,self.RT_claim_sen_as_key_dict[str(claim_num)][4+i*5][0],self.docID_title_RT_dict[self.RT_claim_sen_as_key_dict[str(claim_num)][4+i*5][1]],
-                                      ))         
+                        with open("supp_claim_"+str(claim_num)+"_top_25_sen_"+str(5*i)+"_"+str(5*(i+1))+".csv", "wb") as csvfile:         
+    #                         trick_index=random.randint(1,len(self.trick_sen)-1)
+                            csv.register_dialect('escaped', escapechar="'", quotechar='"',doublequote=False)
+                            w_supp_sen= csv.writer(csvfile, delimiter=',',quoting=csv.QUOTE_NONNUMERIC,dialect='escaped')
+                            w_supp_sen.writerow( ['claim1','sen1','tit1','claim1','sen2','tit2','claim1','sen3','tit3','claim1','sen4','tit4','claim1','sen5','tit5','claim1','sen6','tit6','claim1','sen7','tit7','claim1','sen8','tit8','claim1','sen9','tit9','claim1','sen10','tit10','claim1','sen11','tit11'] )
+                            w_supp_sen.writerow((claim_text,self.wiki_claim_sen_as_key_dict[str(claim_num)][0+i*5][0],self.docID_title_wiki_dict[self.wiki_claim_sen_as_key_dict[str(claim_num)][0+i*5][1]],
+                            claim_text,self.RT_claim_sen_as_key_dict[str(claim_num)][0+i*5][0],self.docID_title_RT_dict[self.RT_claim_sen_as_key_dict[str(claim_num)][0+i*5][1]],
+                            claim_text,self.wiki_claim_sen_as_key_dict[str(claim_num)][1+i*5][0],self.docID_title_wiki_dict[self.wiki_claim_sen_as_key_dict[str(claim_num)][1+i*5][1]],
+                            claim_text,self.RT_claim_sen_as_key_dict[str(claim_num)][1+i*5][0],self.docID_title_RT_dict[self.RT_claim_sen_as_key_dict[str(claim_num)][1+i*5][1]],
+                            claim_text,self.wiki_claim_sen_as_key_dict[str(claim_num)][2+i*5][0],self.docID_title_wiki_dict[self.wiki_claim_sen_as_key_dict[str(claim_num)][2+i*5][1]],
+                            claim_text,self.RT_claim_sen_as_key_dict[str(claim_num)][2+i*5][0],self.docID_title_RT_dict[self.RT_claim_sen_as_key_dict[str(claim_num)][2+i*5][1]],
+                            claim_text,self.wiki_claim_sen_as_key_dict[str(claim_num)][3+i*5][0],self.docID_title_wiki_dict[self.wiki_claim_sen_as_key_dict[str(claim_num)][3+i*5][1]],
+                            claim_text,self.RT_claim_sen_as_key_dict[str(claim_num)][3+i*5][0],self.docID_title_RT_dict[self.RT_claim_sen_as_key_dict[str(claim_num)][3+i*5][1]],
+                            claim_text,self.wiki_claim_sen_as_key_dict[str(claim_num)][4+i*5][0],self.docID_title_wiki_dict[self.wiki_claim_sen_as_key_dict[str(claim_num)][4+i*5][1]],
+                            claim_text,self.trick_sen[trick_index][0],self.trick_sen[trick_index][1],
+                            claim_text,self.RT_claim_sen_as_key_dict[str(claim_num)][4+i*5][0],self.docID_title_RT_dict[self.RT_claim_sen_as_key_dict[str(claim_num)][4+i*5][1]],
+                              ))         
             
             elif choose_sentence_method is "shallow_pool":
                 """for each claim, i took 4 sentences from every ret method, and so each claim has ~ 32 sentences from each ds
@@ -378,7 +377,7 @@ def main():
             claim_sen_file.read_pickle("sen_set_RT_with_score_pickle")
              """
             claim_sen_file.read_pickle("shallow_pool_dict_wiki")
-            claim_sen_file.read_pickle("shallow_pool_dict_RT")
+#             claim_sen_file.read_pickle("shallow_pool_dict_RT")
 #                 claim_sen_file.save_pickle(wiki_RT,"claim_batch_"+wiki_RT+"_pickle",claim_sen_file.claim_batch_dict)
 #                 claim_sen_file.read_pickle("sen_set_stats_"+wiki_RT+"_pickle")
 #                 claim_sen_file.compute_stats_claims_sen()

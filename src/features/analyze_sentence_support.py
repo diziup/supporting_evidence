@@ -115,7 +115,9 @@ class supportive_sentence():
             curr_not_rel_with_score_set=set()        
             curr_undecided_with_score_set=set()        
             
-            
+            #25.02.15 update -  process only wiki sentences 
+            claim_dict = utils.read_pickle("claim_dict")
+            claim_sen_relevance_dict_wiki = utils.read_pickle("claim_sen_relevance_dict_wiki")
             for filename in os.listdir(self.support_annotated_files_path):
     #             curr_mat=np.zeros((60, len(answers_possibilities))) # 10 sentences
                 if filename.split("_")[0]=="f":
@@ -135,9 +137,11 @@ class supportive_sentence():
                     curr_neutral_set=set()
                     curr_undecided_set=set()
                     curr_not_rel_set=set()
-                   
-                    
-                    claim_num=filename.split("_")[1].split(".")[0]
+
+                    #25.02.15 update -  process only wiki sentences 
+                    claim_num = filename.split("_")[1].split(".")[0]
+                    claim_text = claim_dict[claim_num]
+                    curr_claim_wiki_sentences = [sen for sen,rel_score in claim_sen_relevance_dict_wiki[claim_text]]
                     with open(self.support_annotated_files_path+"\\"+filename, 'r') as f:
                         data = pd.read_csv(f)
                         answer=data['to_what_extent_does_the_sentence_support_the_claim_or_contradict_it']
@@ -150,10 +154,11 @@ class supportive_sentence():
                         self.claim_num_and_text[claim_text]=claim_num 
                         for line_num in range(0,len(data)):
                             if is_gold[line_num] != 1 :
-                                if sentence[line_num] in sentence_lines_dict.keys():
-                                    sentence_lines_dict[sentence[line_num]].append(line_num)
-                                else:
-                                    sentence_lines_dict[sentence[line_num]]=[line_num]
+                                if sentence[line_num] in curr_claim_wiki_sentences:
+                                    if sentence[line_num] in sentence_lines_dict.keys():
+                                        sentence_lines_dict[sentence[line_num]].append(line_num)
+                                    else:
+                                        sentence_lines_dict[sentence[line_num]]=[line_num]
                         
                         for sen in range(0,len(sentence_lines_dict)):  #go over all the sentences we have and their corresponding line nums- keys
                             curr_sen_rating=[]
@@ -412,7 +417,7 @@ class supportive_sentence():
                     for item in claim_text_number_of_sentences_in_categorzation.items():
                         w.writerow([item])              
         
-#             calc_variance_categorization(claim_text_number_of_sentences_in_categorzation,not_rel_avg,relevant_avg,contradict_avg,neutral_avg,support_avg,undecided_avg)
+#             self.calc_variance_categorization(claim_text_number_of_sentences_in_categorzation,not_rel_avg,relevant_avg,contradict_avg,neutral_avg,support_avg,undecided_avg)
         except Exception as err: 
             sys.stderr.write('problem in categorize_support:')     
             print err.args      
@@ -479,7 +484,7 @@ class supportive_sentence():
             #plot histograms from the entire data: first for relevant and not relevant category
             #second for support categories
         
-    #             self.plot_averaged_categories_bar_chart(not_rel_avg,relevant_avg,support_avg,contradict_avg,neutral_avg,undecided_avg,std_list)
+                self.plot_averaged_categories_bar_chart(not_rel_avg,relevant_avg,support_avg,contradict_avg,neutral_avg,undecided_avg,std_list)
     #             self.plot_all_claims_categories_bar_chart(claim_text_number_of_sentences_in_categorzation)=     
     
     def plot_all_claims_categories_bar_chart(self,claim_text_number_of_sentences_in_categorzation):

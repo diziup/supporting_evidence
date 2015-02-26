@@ -486,6 +486,7 @@ def create_separate_true_suppport_score_dicts_key_clm_val_list_of_sen():
 #         clm_and_sen_feature_vector_RT = utils.read_pickle("clm_and_sen_feature_vector_"+features_str+"_RT")
         clm_and_sen_feature_vector_wiki = utils.read_pickle("clm_and_sen_feature_vector_"+features_str+"_wiki")#key is clm_num,clm,sen
         clm_sen_support_ranking = utils.read_pickle("clm_sen_support_ranking_"+supp_scale+"_clm_sen_key_supp_score_value")
+        #08.02.2015 update - do the same for the contradict scale dict - created in misc
         claim_dict = utils.read_pickle("claim_dict")
 #         clm_sen_support_ranking_RT = {}
         clm_sen_support_ranking_wiki = {}
@@ -519,7 +520,8 @@ def create_separate_true_suppport_score_dicts_key_clm_val_list_of_sen():
                 clm_as_key_sen_support_score_val_wiki[clm].append((sen,score))
             else:
                 clm_as_key_sen_support_score_val_wiki[clm]=[(sen,score)]
-        
+
+                
 #         for ((clm,sen),score) in clm_sen_support_ranking_RT_sorted.items():
 #             if clm in clm_as_key_sen_support_score_val_RT.keys():
 #                  clm_as_key_sen_support_score_val_RT[clm].append((sen,score))

@@ -13,6 +13,7 @@ import string
 import os
 import nltk
 import math
+import collections
 
 
 def calc_pearson():
@@ -213,11 +214,11 @@ def create_claim_and_sentences_dict_from_retrieval_files(setup, input_files_path
                         print "here" 
                     if claim_sentences_dict.has_key(curr_claim):
                         if not line in claim_sentences_dict[curr_claim]:
-                            claim_sentences_dict[curr_claim].append(line)
+                            claim_sentences_dict[curr_claim].append(line.strip())
                         else:
                             print line +" already in " +str(curr_claim)
                     else:
-                        claim_sentences_dict[curr_claim] = [line]
+                        claim_sentences_dict[curr_claim] = [line.strip()]
         sum_sens = 0
         for claim_num in claim_sentences_dict.keys():
             print claim_num, len(claim_sentences_dict[claim_num])
@@ -624,6 +625,63 @@ def find_wiki_problematioc_docs():
                 print err
     problematic_doc.close()
 
+def read_true_support_score():
+    """
+    copied from the relevance_baseline module
+    """
+    supp_scale = "zero_to_two"
+    clm_sen_support_ranking = utils.read_pickle(r"C:\Users\liorab\workspace\supporting_evidence\src\features\clm_sen_support_ranking_sorted_full")
+    clm_as_key_sen_support_score_val = {} #the same only with supp score
+    clm_as_key_sen_support_score_val_zero_to_two = {}  #22.09 update - for the 0-2 support scale
+    clm_as_key_sen_contradict_score_list_val_zero_to_two = {} #0 - support or any non contra tag
+    clm_as_key_sen_contradict_score_val_zero_to_two = {}
+    clm_and_sen_feature_vector_wiki = utils.read_pickle(r"C:\Users\liorab\workspace\supporting_evidence\src\model\clm_and_sen_feature_vector_sen_sim_entity_presence_wiki")#key is clm_num,clm,sen                                                    # 1 - contra, 2 - strong contra
+    new_supp_score = 0
+    new_contra_score = 0
+    
+    
+    for (clm,sen,score) in clm_sen_support_ranking.keys():
+        found_key = filter(lambda (_,feature_clm,feature_sen): (clm == feature_clm) and (feature_sen==sen), clm_and_sen_feature_vector_wiki.keys() )
+        if len(found_key) >0:
+            if score == 0 or score == 1 or score == 2 or score == 3:
+                new_supp_score = 0
+                if score == 1:
+                    new_contra_score = 2
+                elif score == 2:
+                    new_contra_score = 1
+                elif score == 0:
+                    new_contra_score = 0
+            elif score == 4 :
+                score = 1
+                new_contra_score = 0
+            elif score ==5:
+                new_supp_score = 2
+                new_contra_score = 0
+            if clm in clm_as_key_sen_support_score_val.keys():
+                clm_as_key_sen_support_score_val[clm].append((sen,score))
+                clm_as_key_sen_support_score_val_zero_to_two[clm].append((sen,new_supp_score))
+                clm_as_key_sen_contradict_score_list_val_zero_to_two[clm].append((sen,new_contra_score))
+            else:
+                clm_as_key_sen_support_score_val[clm]=[(sen,score)]
+                clm_as_key_sen_support_score_val_zero_to_two[clm] = [(sen,new_supp_score)]
+                clm_as_key_sen_contradict_score_list_val_zero_to_two[clm] = [(sen,new_contra_score)]
+    
+    clm_as_key_sen_contradict_score_list_val_zero_to_two_sorted = {}
+    for (clm,sentences_list_and_contra_score) in clm_as_key_sen_contradict_score_list_val_zero_to_two.items():
+        sentences_list_and_contra_score_sorted = collections.OrderedDict(sorted(sentences_list_and_contra_score,key=lambda x: (int(x[1])), reverse=True))
+        clm_as_key_sen_contradict_score_list_val_zero_to_two_sorted[clm] = list(sentences_list_and_contra_score_sorted.items())
+              
+    utils.save_pickle("clm_as_key_sen_true_support_score_val_zero_to_five", clm_as_key_sen_support_score_val) 
+    utils.save_pickle("clm_as_key_sen_true_support_score_val_"+supp_scale, clm_as_key_sen_support_score_val_zero_to_two) 
+    utils.save_pickle("clm_as_key_sen_true_contra_score_val_list_sorted_"+supp_scale, clm_as_key_sen_contradict_score_list_val_zero_to_two_sorted)
+    
+    #convert the contra dict to key =  clm,sen and value score instead of the list
+    
+    for (clm,list_of_sen_and_contra_score) in clm_as_key_sen_contradict_score_list_val_zero_to_two_sorted.items():
+        for sen,contra_score in list_of_sen_and_contra_score:
+            clm_as_key_sen_contradict_score_val_zero_to_two[clm,sen] = contra_score
+    utils.save_pickle("clm_as_key_sen_contradict_score_val_zero_to_two",clm_as_key_sen_contradict_score_val_zero_to_two)
+
 def main():
 #     calc_pearson()
 #     create_terms_file_from_claim_and_sentences()
@@ -636,10 +694,10 @@ def main():
 #     find_wiki_problematioc_docs()
 #     add_body_to_doc_datasets()
 #     map_doc_title_docno()
-#     create_claim_and_sentences_dict_from_retrieval_files("support_basline",r"C:\study\technion\MSc\Thesis\Y!\support_test\support_baselines\claimEntity_sen_output")
+    create_claim_and_sentences_dict_from_retrieval_files("support_basline",r"C:\study\technion\MSc\Thesis\Y!\support_test\support_baselines\claimEntity_sen_output")
 #     create_terms_file_from_claim_and_sentences_dict("support_basline")
-    d = utils.read_pickle("support_basline_claim_sentences")
-    print "lior"
+#     d = utils.read_pickle("support_basline_claim_sentences")
 #         calc_idf(r"C:\study\technion\MSc\Thesis\Y!\support_test\data\wikiWithBody_vocab","wikiWithBody")
+#     read_true_support_score()
 if __name__ == '__main__':
     main()
