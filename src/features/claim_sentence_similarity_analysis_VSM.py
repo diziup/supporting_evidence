@@ -18,11 +18,14 @@ import collections
 import os
 import string
 import pickle
+from munkres import Munkres
 
 class clm_sen_similarity_VSM():
     dim = 300
     word_rep_file_tur = r"Tur_neu_dim"+str(dim)+".txt"
-    word_rep_file_word2vec = r"GoogleNews-vectors-negative300.bin.gz"
+    word_rep_file_word2vec = "wikipediaModel_0315.bin"#r"GoogleNews-vectors-negative300.bin.gz"
+    # 15.5.'15 update - add the entity vector, using the pre-trained free-base entity vectors. 
+    entity_rep_file_word2vec = "freebase-vectors-skipgram1000-en.bin.gz"
     word_rep_dict = {}
     representation = "word2vec"
     claim_sens_files_path = r"C:\study\technion\MSc\Thesis\Y!\support_test\stanford_contituent_parser\input"
@@ -40,7 +43,7 @@ class clm_sen_similarity_VSM():
     features = "VSM"
     input_data = "dict" #or files... dict is when the claim and sentences are processed already, file
             # is when they are not...
-    setup = ""
+    setup = "support_baseline"
     
     
     def __init__(self,setup):
@@ -49,7 +52,7 @@ class clm_sen_similarity_VSM():
         self.input_data = "dict"
         self.setup = setup
         self.claim_sentence_list_dict = {} #key is a claim_num, value is a list of its sentences
-        self.claim_list =[7]#,46,47,50]#,51,53,54,55,57,58,59,60,61,62,66,69,70,79,80]
+        self.claim_list = [4,7,17,21,36,37,39,40,41,42,45,46,47,54,55,57,58,59,60,61,66]
          
     def create_clm_sim_dict(self,input_file):
         """
@@ -60,7 +63,7 @@ class clm_sen_similarity_VSM():
         clm_sen_doc = clm_sen_file.read().strip() 
         for i, line in enumerate(clm_sen_doc.splitlines()):
             self.clm_text_sen_text_dict[i]=line
-        self.save_pickle(file_name+"_clm_text_sen_text_dict")    
+        utils_linux.save_pickle(file_name+"_clm_text_sen_text_dict",self.clm_text_sen_text_dict)    
      
     def save_pickle(self,file_name):
         with open(file_name, 'wb') as handle:
@@ -99,7 +102,7 @@ class clm_sen_similarity_VSM():
 #             rep_doc = rep_file.read()
             for line in (rep_doc.split('\n')):
                 self.word_rep_dict[line.split()[0]]=line.split()[1:self.dim+1] 
-            self.save_pickle("word_rep_"+str(self.dim))
+            utils_linux.save_pickle("word_rep_"+str(self.dim),self.word_rep_dict)
             print "finished read_word_rep_file"
         except Exception as err: 
             sys.stderr.write('problem in read_word_rep_file:')     
@@ -108,7 +111,9 @@ class clm_sen_similarity_VSM():
 
     def  read_sen_word2vec(self):
         #read the available words from google news
-        self.model = gensim.models.word2vec.Word2Vec.load_word2vec_format(self.word_rep_file_word2vec, binary=True)
+        print "reading word2vec"
+        self.model_words = gensim.models.word2vec.Word2Vec.load_word2vec_format(self.word_rep_file_word2vec, binary=True)
+        self.model_entity = gensim.models.word2vec.Word2Vec.load_word2vec_format(self.entity_rep_file_word2vec, binary=False)
         print "finished reading word2vec"
     
     def tokenize_sentences_from_dict(self):
@@ -127,11 +132,12 @@ class clm_sen_similarity_VSM():
             #for (clm,sentences_list) in self.claim_sentence_list_dict.items():
             for clm in self.claim_list:
                 sen_cnt = 0
-                sentences_list = self.claim_sentence_list_dict[int(clm)]
+                sentences_list = self.claim_sentence_list_dict[clm]
 #                     for i, line_with_query in enumerate(sen_doc.splitlines()):
-                print "tokenizing " +str(len(sentences_list)) +" from dict in clm ", clm
+                print "\t tokenizing " +str(len(sentences_list)) +" from dict in clm ", clm
                 self.tokenized_clm_and_sen_dict = {}
                 clm_text = claim_dict[str(clm)]
+                #15.05.'15 update- tokenize the claim with the claim's entity
 #                         line=line_with_query.split("|")[1]
                 # Split up expression with "-"!! 27.09 update!!!!
 #                 line.replace("-"," ")
@@ -155,6 +161,8 @@ class clm_sen_similarity_VSM():
                         self.tokenized_clm_and_sen_dict[sen_cnt] = [w for w in tempWords if (w.lower() not in stopWords and len(w) > 1 and not w.isdigit())  ]
                     elif self.features is "VSM":
                         self.tokenized_clm_and_sen_dict[sen_cnt] = [self.check_word_in_rep_dict(w,self.representation) for w in tempWords if ( self.check_word_in_rep_dict(w,self.representation) is not "no") and  w not in exclude ]
+                    if len(self.tokenized_clm_and_sen_dict[sen_cnt]) == 0:
+                        print "\t", sen_cnt , "is empty"
                     sen_cnt += 1
                 
                 utils_linux.save_pickle(self.setup+'_clm_'+str(clm)+'_tokenized_clm_and_sen_dict_'+self.features,self.tokenized_clm_and_sen_dict)
@@ -200,7 +208,7 @@ class clm_sen_similarity_VSM():
                     self.tokenized_clm_and_sen_dict[i] = [self.check_word_in_rep_dict(w,self.representation) for w in tempWords if ( self.check_word_in_rep_dict(w,self.representation) is not "no") and  w not in exclude ]
                     """08.06 liora update - tokenized sen with stop words, bacause we may use a parse tree and this is necessary for this.
                     """
-            self.save_pickle(file_name+'_tokenized_sen_'+self.features)
+            utils_linux.save_pickle(file_name+'_tokenized_sen_'+self.features,self.tokenized_clm_and_sen_dict)
             
             tokenized_sen = csv.writer(open(file_name+'_tokenized_sen_'+self.features+".csv", "wb"))
             for sen in self.tokenized_clm_and_sen_dict.values():
@@ -222,10 +230,13 @@ class clm_sen_similarity_VSM():
             else: 
                 return "no"
         elif representation is "word2vec":
-            if self.model.__contains__(word):
+            if self.model_words.__contains__(word):
                 return word
+            if self.model_words.__contains__(word.lower()):
+                return word.lower()
             else: 
                 return "no"
+    
     
     def represent_clm_and_sen_as_VSM(self,input_file):
         print "enetered represent_clm_and_sen_as_VSM"
@@ -242,8 +253,8 @@ class clm_sen_similarity_VSM():
                         if self.representation is "turian":
                             curr_clm_sen_matrix = np.vstack((curr_clm_sen_matrix, self.word_rep_dict[word]))
                         elif self.representation is "word2vec":
-                            if self.model.__contains__(word):
-                                curr_clm_sen_matrix = np.vstack((curr_clm_sen_matrix, self.model.__getitem__(word)))
+                            if self.model_words.__contains__(word):
+                                curr_clm_sen_matrix = np.vstack((curr_clm_sen_matrix, self.model_words.__getitem__(word)))
                     curr_clm_sen_matrix = np.delete(curr_clm_sen_matrix,(0),axis=0) #delete the first zero row
                     curr_clm_sen_matrix = curr_clm_sen_matrix.astype(np.float)
                     clm_sen_VSM_matrix[self.tokenized_clm_and_sen_dict.keys().index(key)] = np.sum(curr_clm_sen_matrix,0)/len(sen) #sum up all the word vectors
@@ -281,8 +292,8 @@ class clm_sen_similarity_VSM():
                     else:
                         word_vector=np.zeros((1,self.dim))
                 elif self.representation is "word2vec":
-                    if self.model.__contains__(parse_tree_node.word):
-                        word_vector = self.model.__getitem__(parse_tree_node.word)
+                    if self.model_words.__contains__(parse_tree_node.word):
+                        word_vector = self.model_words.__getitem__(parse_tree_node.word)
                         word_vector = map(float, word_vector)
                     else:
                         print parse_tree_node.word +"not in google words"
@@ -365,7 +376,7 @@ class clm_sen_similarity_VSM():
                 curr_clm_sen_sim = utils_linux.cosine_measure(claim_vector, clm_sen_VSM_array[sen_row])
                 self.clm_sen_cosine_sim_res[(self.clm_text_sen_text_dict[0],self.clm_text_sen_text_dict[sen_row])]=curr_clm_sen_sim
 #                 self.all_clm_sen_sim_res[(self.clm_text_sen_text_dict[0],self.clm_text_sen_text_dict[sen_row])]=curr_clm_sen_sim
-            self.save_pickle(input_file_name+"_clm_sen_cosine_sim_res_"+self.representation+"_"+self.compositional_func+"_"+str(self.dim))
+            utils_linux.save_pickle(input_file_name+"_clm_sen_cosine_sim_res_"+self.representation+"_"+self.compositional_func+"_"+str(self.dim),self.clm_sen_cosine_sim_res)
         except Exception as err:
             sys.stderr.write('problem in calc_clm_sen_similarity:')     
             print err.args      
@@ -383,6 +394,7 @@ class clm_sen_similarity_VSM():
         #read the idf dict
         print "calculating max sim for claim", input_file_name
         
+        curr_claim_num = int(input_file_name.split("_")[1])
         if self.wiki_rt_setup == "separate":
 #             RT_term_idf_dict = utils_linux.read_pickle("RT_term_idf_dict")
 #             wiki_term_idf_dict = utils_linux.read_pickle("wiki_term_idf_dict")
@@ -390,7 +402,6 @@ class clm_sen_similarity_VSM():
         elif self.wiki_rt_setup == "unified":
             unified_term_idf_dict = utils_linux.read_pickle("unified_term_idf_dict")
             
-        
         curr_claim_words = self.tokenized_clm_and_sen_dict.values()[0]
         curr_claim = ' '. join(curr_claim_words)
         self.clm_sen_cosine_sim_res = {}
@@ -415,8 +426,8 @@ class clm_sen_similarity_VSM():
                         if self.representation is "turian":
                             curr_clm_word_vec = self.word_rep_dict[claim_word]
                         elif self.representation is "word2vec" :
-                            if self.model.__contains__(claim_word):
-                                curr_clm_word_vec = self.model.__getitem__(claim_word)
+                            if self.model_words.__contains__(claim_word):
+                                curr_clm_word_vec = self.model_words.__getitem__(claim_word)
                                
                             else:
                                 not_found_words.append(claim_word)
@@ -427,8 +438,8 @@ class clm_sen_similarity_VSM():
                             if self.representation is "turian":
                                 curr_sen_word_vec = self.word_rep_dict[sen_word]
                             elif self.representation is "word2vec":
-                                if self.model.__contains__(sen_word):
-                                    curr_sen_word_vec = self.model.__getitem__(sen_word)
+                                if self.model_words.__contains__(sen_word):
+                                    curr_sen_word_vec = self.model_words.__getitem__(sen_word)
                                 else:
                                     not_found_words.append(sen_word)
                                     continue
@@ -460,8 +471,11 @@ class clm_sen_similarity_VSM():
                         curr_clm_sen_sim = max_sim #finished with the curr sen and a particular clm word
                     try:
                         curr_clm_sen_sim = float(curr_clm_sen_sim/float(len(curr_claim_words)*len(curr_sen_words)))
-                        self.clm_sen_cosine_sim_res[(curr_claim,curr_sen)] = curr_clm_sen_sim
-                        print "entered to dict sen idx: ",sen_idx
+                        #03/15 update -  keep the clm num and sen num
+                        #self.clm_sen_cosine_sim_res[(curr_claim,curr_sen)] = curr_clm_sen_sim
+                        self.clm_sen_cosine_sim_res[(curr_claim_num,sen_idx)] = curr_clm_sen_sim
+                        
+#                         print "entered to dict sen idx: ",sen_idx
                         self.max_sim_words_clm_and_sen[(curr_claim,curr_sen)] = (max_sim_clm_word,max_sim_sen_word,str(curr_clm_sen_sim))
 #                         self.clm_sen_cosine_sim_res[(self.clm_text_sen_text_dict[0],self.clm_text_sen_text_dict[sen_idx])]=curr_clm_sen_sim
 #                         self.max_sim_words_clm_and_sen[(self.clm_text_sen_text_dict[0],self.clm_text_sen_text_dict[sen_idx])] = (max_sim_clm_word,max_sim_sen_word,str(curr_clm_sen_sim))
@@ -478,7 +492,176 @@ class clm_sen_similarity_VSM():
         utils_linux.save_pickle(input_file_name+"_clm_sen_cosine_sim_res_"+self.representation+"_"+self.compositional_func+"_"+str(self.dim), self.clm_sen_cosine_sim_res)
 #         self.save_to_csv_file(self.clm_sen_cosine_sim_res,input_file_name+"_clm_sen_cosine_sim_res_"+self.representation+"_"+self.compositional_func+"_"+str(self.dim)+".csv")
         print "finished calculating max sim for claim", input_file_name
-            
+    
+    def get_word_vec_from_word_rep_dict(self,word):
+        try:
+            if self.representation is "turian":
+                if self.word_rep_dict.has_key(word):
+                    curr_vec = self.word_rep_dict[word]
+                    return curr_vec
+                else:
+                    print "word not found in turian", word
+                    return np.zeros((1,self.dim))
+            elif self.representation is "word2vec" :
+                if self.model_words.__contains__(word):
+                    curr_vec = self.model_words.__getitem__(word)
+                    return curr_vec
+                elif self.model_words.__contains__(word.lower()):
+                    curr_vec = self.model_words.__getitem__(word.lower())
+                    return curr_vec
+                else:
+                    print "word not found in word2vec", word
+                    return np.zeros((self.dim))
+        except Exception as err: 
+            sys.stderr.write('problem in get_word_vec_from_word_rep_dict'+word)     
+            print err.args      
+            print err    
+    
+    def find_words(self,words_list):
+        try:
+            curr_len = 0
+            curr_found_words = []
+            for word in words_list:
+                curr_clm_word_vec = self.get_word_vec_from_word_rep_dict(word) 
+                if np.array_equal(curr_clm_word_vec,np.zeros((curr_clm_word_vec.shape[0])))== True:
+                    continue
+                else:
+                    curr_len += 1
+                    curr_found_words.append(word)
+            return (curr_len,curr_found_words)
+        except Exception as err: 
+            sys.stderr.write('problem in find_words',words_list)     
+            print err.args      
+            print err    
+         
+    def calc_clm_sen_sim_based_on_max_sim_full_coverage_claim(self,input_file_name):
+        """
+        As an extension of max sim between claim word and sen words,
+        for each claim word (excluding stop words and perhaps excluding the entity in the claim),
+        find a match - using the hungarian algorithm:
+        for each claim and sentence:
+            have an n*m matrix, n = words in claim;m - words in sentence (if not squared, pad it)
+            entry i,j is the cosine sim between word i and word j, scaled with their idf.
+            The profit is the total similarity between clain and sentence
+        """
+        print "calculating max_sim_full_coverage_claim", input_file_name
+        
+        curr_claim_num = int(input_file_name.split("_")[1])  
+        curr_claim_words = self.tokenized_clm_and_sen_dict.values()[0]
+        curr_claim_len = len(curr_claim_words)
+        curr_claim = ' '. join(curr_claim_words)
+        self.clm_sen_cosine_sim_res = {}
+        wiki_term_idf_dict = utils_linux.read_pickle("wikiWithBody_term_idf")
+        print "\t in claim: "+ curr_claim
+        
+#         curr_clm_word_vec = np.zeros((1,self.dim))
+        print "\t with",str(len(self.tokenized_clm_and_sen_dict.keys()))+" sentences"
+        curr_claim_len,curr_claim_found_words = self.find_words(curr_claim_words)
+        curr_claim_words_matrix = np.zeros((1,self.dim))              
+        for claim_word in curr_claim_found_words:
+            claim_word_idx = curr_claim_found_words.index(claim_word)
+            curr_clm_word_vec = self.get_word_vec_from_word_rep_dict(claim_word)
+            if wiki_term_idf_dict.has_key(claim_word):
+                curr_clm_word_vec = curr_clm_word_vec*wiki_term_idf_dict[claim_word]
+            elif wiki_term_idf_dict.has_key(claim_word.lower()):
+                curr_clm_word_vec = curr_clm_word_vec*wiki_term_idf_dict[claim_word.lower()]
+            curr_claim_words_matrix = np.vstack((curr_claim_words_matrix,curr_clm_word_vec))
+        curr_claim_words_matrix = np.delete(curr_claim_words_matrix,(0),axis=0)
+        for sen_idx in range(1,len(self.tokenized_clm_and_sen_dict.keys())):
+            #    print "in sen index:" +str(sen_idx) 
+            try:
+                curr_sen_words_matrix = np.zeros((1,self.dim))
+                curr_sen_word_vec = np.zeros((1,self.dim))
+                curr_clm_sen_sim = 0
+                curr_sen_words = self.tokenized_clm_and_sen_dict.values()[sen_idx]
+                if len(curr_sen_words) > 0:
+                    negativity_flag = 0
+                    curr_sen = ' '. join(curr_sen_words)
+                    curr_sen_len,curr_sen_found_words = self.find_words(curr_sen_words)
+                    ####go over sen words
+                    curr_claim_sen_words_sim_matrix = np.zeros((curr_claim_len,curr_sen_len))
+                    for sen_word in curr_sen_found_words:
+                        sen_word_idx = curr_sen_found_words.index(sen_word)
+                        curr_sen_word_vec = self.get_word_vec_from_word_rep_dict(sen_word)
+                        if wiki_term_idf_dict.has_key(sen_word):
+                            curr_sen_word_vec = curr_sen_word_vec*wiki_term_idf_dict[sen_word]
+                        elif wiki_term_idf_dict.has_key(sen_word.lower()):
+                            curr_sen_word_vec = curr_sen_word_vec*wiki_term_idf_dict[sen_word.lower()]
+                        curr_sen_words_matrix = np.vstack((curr_sen_words_matrix,curr_sen_word_vec))
+                    curr_sen_words_matrix = np.delete(curr_sen_words_matrix, (0),axis=0)
+                    for claim_word_idx in range(0,curr_claim_words_matrix.shape[0]):
+                        for sen_word_idx in range(0,curr_sen_words_matrix.shape[0]):
+                            curr_words_sim = utils_linux.cosine_measure(curr_claim_words_matrix[claim_word_idx], curr_sen_words_matrix[sen_word_idx])
+                            if curr_words_sim < 0:
+                                negativity_flag = 1
+                            curr_claim_sen_words_sim_matrix[claim_word_idx][sen_word_idx] = curr_words_sim
+                    #put large value in the zero values items
+                    zero_row_ind,zero_col_ind = np.where(curr_claim_sen_words_sim_matrix==0) 
+                    for ind in range(0,len(zero_row_ind)):
+                        curr_claim_sen_words_sim_matrix[zero_row_ind[ind],zero_col_ind[ind]] = sys.maxsize 
+                    # if the matrix is not square, pad it with minus inf rows
+                    while curr_claim_sen_words_sim_matrix.shape[0] < curr_claim_sen_words_sim_matrix.shape[1]:
+                        curr_claim_sen_words_sim_matrix = np.vstack((curr_claim_sen_words_sim_matrix,curr_sen_len*[sys.maxsize]))
+                    while curr_claim_sen_words_sim_matrix.shape[0] > curr_claim_sen_words_sim_matrix.shape[1]:
+                        #TODO
+                        # need to decide with the others what to do when the claim is longer than the sentence
+                        a = np.vstack((curr_claim_sen_words_sim_matrix.T,curr_claim_len*[sys.maxsize]))
+                        curr_claim_sen_words_sim_matrix = a.T
+                        
+                    # update 21/04/15 -  because the hungarian algo' requires non-negative values,
+                    # so add a large constant to the matrix, and on this matrix apply the algo' to get the assignment,
+                    # the value will be determined according to the original matrix
+                    curr_clm_sen_sim = self.apply_hungarian_algo(curr_claim_sen_words_sim_matrix, curr_claim_len,negativity_flag)
+                    self.clm_sen_cosine_sim_res[(curr_claim_num,sen_idx)] = curr_clm_sen_sim
+                else:
+                    print "\t sen " +str(sen_idx) +" is empty"
+                    self.clm_sen_cosine_sim_res[(curr_claim_num,sen_idx)] = 0                
+            except Exception as err: 
+                sys.stderr.write('\t problem in sen_idx'+str(sen_idx) +" ")     
+                print err.args      
+                print err                
+        # convert the sim profit matrix to a cost matrix
+        utils_linux.save_pickle(input_file_name+"_clm_sen_cosine_sim_res_"+self.representation+"_"+self.compositional_func+"_"+str(self.dim), self.clm_sen_cosine_sim_res)
+#         self.save_to_csv_file(self.clm_sen_cosine_sim_res,input_file_name+"_clm_sen_cosine_sim_res_"+self.representation+"_"+self.compositional_func+"_"+str(self.dim)+".csv")
+        print "\t finished calc_clm_sen_sim_based_on_max_sim_full_coverage_claim", input_file_name
+    
+    def apply_hungarian_algo(self,matrix,claim_len, negativity_flag):
+#       print "applying hungrarin algo..."
+        #construct the Munkres() object
+        try:
+            munkres = Munkres()
+            cost_sim_matrix = []
+            cost_sim_matrix_orig = []
+            C = 1000
+            converted_matrix = matrix.copy()
+            if negativity_flag == 1:
+                converted_matrix += C 
+            #convert the similarity - as I want a maximun profit (sim) rather than a minmum cost
+            for row in converted_matrix:
+                cost_row = map(lambda x: -1*x ,row)
+                cost_sim_matrix += [cost_row]
+            indexes = munkres.compute(converted_matrix)
+            for row in matrix:
+                cost_row = map(lambda x: -1*x ,row)
+                cost_sim_matrix_orig += [cost_row]
+                
+    #                     print_matrix(curr_claim_sen_words_sim_matrix, msg='Highest profit through this matrix:')
+            curr_clm_sen_sim = 0
+            for row, column in indexes:
+                if row < claim_len:
+                    value = cost_sim_matrix_orig[row][column]
+                    curr_clm_sen_sim += value
+    #                 print '(%f, %f) -> %f' % (row, column, value)
+                else:
+    #                 print "covered claim words"
+                    break
+    #         print 'total profit as words sim=%f' % curr_clm_sen_sim
+            return curr_clm_sen_sim
+        except Exception as err: 
+                sys.stderr.write('problem in apply_hungarian_algo')     
+                print err.args      
+                print err  
+        
     def save_to_csv_file(self,d,file_name):      #save to file
         with open(file_name, 'wb') as csvfile:
             w = csv.writer(csvfile)
@@ -487,11 +670,13 @@ class clm_sen_similarity_VSM():
                  
     def combine_all_clm_sen_sim(self,features):
         try:
-            for filename in os.listdir(self.clm_sen_input_path):
-                file_clm_name = 'clm_'+filename.split('_')[1]
-                self.read_pickle(file_clm_name+"_clm_sen_cosine_sim_res_"+self.representation+"_"+self.compositional_func+"_"+str(self.dim))             
+            print "in combine_all_clm_sen_sim..."
+            claim_list = [4,7,17,21,36,37,39,40,41,42,45,46,47,54,55,57,58,59,60,61,66]
+            for clm_num in claim_list:
+                self.read_pickle("clm_"+str(clm_num)+"_clm_sen_cosine_sim_res_"+self.representation+"_"+self.compositional_func+"_"+str(self.dim))             
+                print "clm_num:" ,clm_num, len(self.clm_sen_cosine_sim_res)
                 self.all_clm_sen_sim_res.update(self.clm_sen_cosine_sim_res)
-                
+            print "finished combine_all_clm_sen_sim"   
         except Exception as err: 
                 sys.stderr.write('problem in combine_all_clm_sen_sim:')     
                 print err.args      
@@ -535,8 +720,8 @@ class clm_sen_similarity_VSM():
                     if self.representation is "turian":
                         curr_clm_word_vec = self.word_rep_dict[claim_word]
                     else:
-                        if self.model.__contains__(claim_word):
-                            curr_clm_word_vec = self.model.__getitem__(claim_word)
+                        if self.model_words.__contains__(claim_word):
+                            curr_clm_word_vec = self.model_words.__getitem__(claim_word)
                         else:
                             not_found_words.append(claim_word)
                             continue
@@ -545,8 +730,8 @@ class clm_sen_similarity_VSM():
                         if self.representation is "turian":
                             curr_sen_word_vec = self.word_rep_dict[sen_word]
                         elif self.representation is "word2vec":
-                            if self.model.__contains__(sen_word):
-                                curr_sen_word_vec = self.model.__getitem__(sen_word)
+                            if self.model_words.__contains__(sen_word):
+                                curr_sen_word_vec = self.model_words.__getitem__(sen_word)
                             else:
                                 not_found_words.append(sen_word)
                                 continue
@@ -597,6 +782,9 @@ def main():
         clm_sen_sim.compositional_func = "max_words_similarity"
         entity_presence = "allow" #if "remove" the entity name from the clm and sen
        
+        clm_sen_sim.combine_all_clm_sen_sim(clm_sen_sim.features)    
+        utils_linux.save_pickle(clm_sen_sim.setup+"_all_clm_sen_cosine_sim_res_"+clm_sen_sim.representation+"_"+clm_sen_sim.compositional_func+"_"+str(clm_sen_sim.dim),clm_sen_sim.all_clm_sen_sim_res) 
+        
         if clm_sen_sim.representation == "turian":
 #             clm_sen_sim.read_word_rep_file()
             clm_sen_sim.read_pickle("word_rep_"+str(clm_sen_sim.dim))
@@ -622,7 +810,7 @@ def main():
                         clm_sen_sim.save_to_csv_file(clm_sen_sim.max_sim_words_clm_and_sen, clm_sen_sim.setup+"_max_sim_words_clm_and_sen_"+file_clm_name+".csv")
 #                         clm_sen_sim.tokenize_sentences(filename,clm_sen_sim.features);  
                 elif clm_sen_sim.input_data == "dict":
-                    clm_sen_sim.tokenize_sentences_from_dict()
+#                     clm_sen_sim.tokenize_sentences_from_dict()
                     clm_sen_sim.claim_sentence_list_dict = utils_linux.read_pickle(clm_sen_sim.setup+"_claim_sentences")
                     #clm_sen_sim.tokenized_clm_and_sen_dict = utils_linux.read_pickle(clm_sen_sim.setup+'_tokenized_clm_and_sen_dict_'+clm_sen_sim.features)
 #                     for clm in clm_sen_sim.claim_sentence_list_dict.keys():
@@ -630,8 +818,9 @@ def main():
                         file_clm_name = 'clm_' + str(clm)
                         clm_sen_sim.tokenized_clm_and_sen_dict = utils_linux.read_pickle(clm_sen_sim.setup+'_clm_'+str(clm)+'_tokenized_clm_and_sen_dict_'+clm_sen_sim.features)
                         clm_sen_sim.read_pickle(file_clm_name + "_clm_text_sen_text_dict")
-                        clm_sen_sim.calc_clm_sen_sim_based_on_max_sim_between_word(file_clm_name)
-                        clm_sen_sim.save_to_csv_file(clm_sen_sim.max_sim_words_clm_and_sen, clm_sen_sim.setup+"_clm_"+str(clm)+"_max_sim_words_clm_and_sen.csv")     
+#                         clm_sen_sim.calc_clm_sen_sim_based_on_max_sim_between_word(file_clm_name)
+#                         clm_sen_sim.calc_clm_sen_sim_based_on_max_sim_full_coverage_claim(file_clm_name)
+#                         clm_sen_sim.save_to_csv_file(clm_sen_sim.max_sim_words_clm_and_sen, clm_sen_sim.setup+"_clm_"+str(clm)+"_max_sim_words_clm_and_sen.csv")     
         #             
             else:
                 clm_sen_sim.read_pickle(file_clm_name+'_tokenized_sen_'+clm_sen_sim.features)
@@ -641,8 +830,8 @@ def main():
                 clm_sen_sim.calc_clm_sen_similarity(file_clm_name)
               
         
-            clm_sen_sim.combine_all_clm_sen_sim(clm_sen_sim.features)    
-            clm_sen_sim.save_pickle(clm_sen_sim.setup+"_all_clm_sen_cosine_sim_res_"+clm_sen_sim.representation+"_"+clm_sen_sim.compositional_func+"_"+str(clm_sen_sim.dim)) 
+#             clm_sen_sim.combine_all_clm_sen_sim(clm_sen_sim.features)    
+#             clm_sen_sim.save_pickle(clm_sen_sim.setup+"_all_clm_sen_cosine_sim_res_"+clm_sen_sim.representation+"_"+clm_sen_sim.compositional_func+"_"+str(clm_sen_sim.dim)) 
     #         
             #read back the pickle and sort for each claim by most similar
             clm_sen_sim.read_pickle(clm_sen_sim.setup+"all_clm_sen_cosine_sim_res_" + clm_sen_sim.representation+"_"+clm_sen_sim.compositional_func+"_"+str(clm_sen_sim.dim))
